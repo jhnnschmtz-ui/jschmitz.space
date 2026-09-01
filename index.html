@@ -78,7 +78,7 @@
 
   <div onClick="{{ stop }}" style="position: absolute; z-index: 10; left: {{ aboutImgLeft }}; width: {{ aboutImgWidth }}; height: {{ zoomHeight }}; top: {{ zoomTop }}; bottom: {{ zoomBottom }}; transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), opacity 800ms ease; transform: translate({{ zoomTX }}, {{ zoomTY }}) scale({{ aboutScale }}); opacity: {{ aboutOpacity }}; pointer-events: {{ aboutPointer }}; background: {{ aboutBg }}; box-shadow: 0 28px 70px oklch(0.2 0.01 260 / 0.16);"></div>
 
-  <div onClick="{{ stop }}" style="position: absolute; z-index: 12; transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), opacity 800ms ease; max-width: {{ aboutCopyMaxWidth }}; top: {{ copyTop }}; bottom: {{ copyBottom }}; left: {{ aboutCopyLeft }}; right: {{ aboutCopyRight }}; padding: {{ copyPad }}; background: {{ copyBg }}; transform: translateX({{ aboutCopyX }}); opacity: {{ aboutOpacity }}; pointer-events: {{ aboutPointer }};">
+  <div onClick="{{ stop }}" style="position: absolute; z-index: 12; transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), opacity 800ms ease; max-width: {{ aboutCopyMaxWidth }}; top: {{ aboutCopyTop }}; bottom: {{ aboutCopyBottom }}; left: {{ aboutCopyLeft }}; right: {{ aboutCopyRight }}; padding: {{ copyPad }}; background: {{ copyBg }}; transform: translateX({{ aboutCopyX }}); opacity: {{ aboutOpacity }}; pointer-events: {{ aboutPointer }};">
     <div style="display: flex; flex-direction: column; gap: 14px;">
       <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.48 0.006 260);">About</div>
       <div style="font-family: 'Archivo', 'Helvetica Neue', sans-serif; font-variation-settings: 'wdth' 112; font-weight: 600; text-transform: uppercase; font-size: {{ titleSize }}; line-height: 1.08; letter-spacing: 0.005em;">{{ ownerName }}</div>
@@ -97,7 +97,7 @@
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;ownerName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Johann Schmitz&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;aboutText&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Product designer working across interfaces, systems, and the details in between. Currently open to new work.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;portrait&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;ownerName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Johann Schmitz&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;aboutText&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Product designer working across interfaces, systems, and the details in between. Currently open to new work.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;portrait&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;img/002-2.jpg">
 class Component extends DCLogic {
   state = { active: null, zoom: null, about: false, k1: 1, k2: 1, narrow: typeof window !== "undefined" && window.innerWidth < 640 };
 
@@ -109,14 +109,14 @@ class Component extends DCLogic {
       this._measure();
       this._measureStreams();
     };
-    this._wheel = (e) => { this._push(e.deltaY * 5, false); };
+    this._wheel = (e) => { this._push(-e.deltaY * 5, false); };
     this._tstart = (e) => { this._ty = e.touches[0].clientY; this._tt = performance.now(); this._moved = 0; };
     this._tmove = (e) => {
       const y = e.touches[0].clientY, now = performance.now();
       const dy = y - this._ty, dt = Math.max(8, now - this._tt);
       this._ty = y; this._tt = now; this._moved += Math.abs(dy);
-      this._push(-dy * 1.6, true);
-      this._lastV = (-dy / dt) * 1000 * 1.6;
+      this._push(dy * 1.6, true);
+      this._lastV = (dy / dt) * 1000 * 1.6;
     };
     this._tend = () => { if (this._moved > 10 && this._lastV) this._push(this._lastV * 0.6, false); this._lastV = 0; };
     window.addEventListener("keydown", this._key);
@@ -180,12 +180,13 @@ class Component extends DCLogic {
     this._raf = requestAnimationFrame(tick);
   };
 
-  _push = (amount, drag) => {
+  _push = (amount, drag, useSign) => {
     for (const k of ["idx", "proj"]) {
       const s = this._st[k];
       if (!s.copy) continue;
-      if (drag) s.off += amount * this._sign(k);
-      else s.v += amount * this._sign(k);
+      const dir = useSign ? this._sign(k) : 1;
+      if (drag) s.off += amount * dir;
+      else s.v += amount * dir;
     }
   };
 
@@ -362,9 +363,11 @@ class Component extends DCLogic {
       aboutImgLeft: narrow ? "3vw" : (open ? "calc(95vw - min(40vw, 62vh, 640px))" : "5vw"),
       aboutImgWidth: narrow ? "min(94vw, 44vh)" : "min(40vw, 62vh, 640px)",
       aboutCopyMaxWidth: narrow ? "42vw" : "clamp(220px, 21vw, 300px)",
+      aboutCopyTop: narrow ? "auto" : "calc(50vh - min(20vw, 31vh, 320px) - 20px)",
+      aboutCopyBottom: narrow ? "calc(9vh + min(94vw, 44vh) + 16px)" : "auto",
       aboutCopyLeft: narrow ? (open ? "auto" : "3vw") : (open ? "auto" : "calc(5vw + min(40vw, 62vh, 640px) + 40px)"),
       aboutCopyRight: narrow ? (open ? "3vw" : "auto") : (open ? "calc(5vw + min(40vw, 62vh, 640px) + 40px)" : "auto"),
-      aboutBg: this._bg(this.props.portrait ?? "", "oklch(0.87 0.004 260)"),
+      aboutBg: this._bg(this.props.portrait ?? "img/002-2.jpg", "oklch(0.87 0.004 260)"),
       aboutText: this.props.aboutText ?? "Product designer working across interfaces, systems, and the details in between. Currently open to new work.",
       closeZoom: this.closeZoom,
       zoomCaption: zs ? zs.caption : "",
