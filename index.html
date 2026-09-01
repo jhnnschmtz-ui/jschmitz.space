@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Johann Schmitz — Portfolio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Work+Sans:wght@300;400&amp;display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: oklch(1 0 0); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  a { color: oklch(0.2 0.008 260); text-decoration: none; }
+  a:hover { color: oklch(1 0 0); }
+  @keyframes driftDown { from { transform: translateY(-50%); } to { transform: translateY(0%); } }
+  @keyframes driftUp { from { transform: translateY(0%); } to { transform: translateY(-50%); } }
+  @keyframes nameIn { from { opacity: 0; transform: translateY(46vh); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes softIn { from { opacity: 0; } to { opacity: 1; } }
+  ::selection { background: oklch(0.2 0.008 260); color: oklch(1 0 0); }
+</style>
+</helmet>
+
+<div onClick="{{ goHome }}" style="position: fixed; inset: 0; overflow: hidden; background: oklch(1 0 0); color: oklch(0.2 0.008 260); font-family: 'Work Sans', system-ui, sans-serif; font-weight: 300;">
+
+  <div style="position: absolute; top: 0; right: {{ streamOverhang }}; width: {{ streamWidth }}; height: 100%; transition: transform 1500ms cubic-bezier(0.16, 1, 0.3, 1), opacity 1100ms ease; transform: translateX({{ indexStreamX }}); opacity: {{ indexStreamOpacity }}; pointer-events: {{ indexPointer }};">
+    <div style="display: flex; flex-direction: column; gap: 11vh; animation: driftDown {{ driftIndexDur }} linear infinite; will-change: transform;">
+      <sc-for list="{{ indexStream }}" as="c" hint-placeholder-count="10">
+        <div onClick="{{ c.open }}" style="flex: none; cursor: pointer; height: {{ c.h }}; width: 100%; background: {{ c.bg }}; transition: filter 700ms ease;" style-hover="filter: brightness(1.08);">
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position: absolute; top: 0; left: {{ streamOverhang }}; width: {{ streamWidth }}; height: 100%; transition: transform 1500ms cubic-bezier(0.16, 1, 0.3, 1), opacity 1100ms 200ms ease; transform: translateX({{ projectStreamX }}); opacity: {{ projectStreamOpacity }};">
+    <div style="display: flex; flex-direction: column; gap: 9vh; animation: driftUp {{ driftProjDur }} linear infinite; will-change: transform; position: relative">
+      <sc-for list="{{ projectStream }}" as="p" hint-placeholder-count="8">
+        <div onClick="{{ p.open }}" style="flex: none; cursor: pointer; height: {{ p.h }}; width: 100%; background: {{ p.bg }};">
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div onClick="{{ stop }}" style="position: absolute; z-index: 4; transition: transform 1700ms cubic-bezier(0.16, 1, 0.3, 1), opacity 1200ms ease; left: {{ zoomLeft }}; width: {{ zoomWidth }}; height: {{ zoomHeight }}; top: {{ zoomTop }}; bottom: {{ zoomBottom }}; transform: translate({{ zoomTX }}, {{ zoomTY }}) translateX({{ heroSlideX }}) scale({{ heroScale }}); opacity: {{ heroOpacity }}; visibility: {{ heroVisibility }}; background: {{ heroBg }};">
+    <div style="position: absolute; left: 16px; bottom: 14px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: {{ captionSize }}; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.28 0.008 260);">{{ heroCaption }}</div>
+  </div>
+
+  
+
+  <div onClick="{{ stop }}" style="position: absolute; z-index: 11; transition: transform 1600ms cubic-bezier(0.16, 1, 0.3, 1), opacity 1000ms ease; max-width: {{ copyMaxWidth }}; top: {{ copyTop }}; bottom: {{ copyBottom }}; left: {{ copyLeft }}; right: {{ copyRight }}; padding: {{ copyPad }}; background: {{ copyBg }}; text-align: left; transform: translateX({{ copyX }}); opacity: {{ copyOpacity }}; pointer-events: {{ copyPointer }};">
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.48 0.006 260);">{{ activeMeta }}</div>
+      <div style="font-family: 'Archivo', 'Helvetica Neue', sans-serif; font-variation-settings: 'wdth' 112; font-weight: 600; text-transform: uppercase; font-size: {{ titleSize }}; line-height: 1.08; letter-spacing: 0.005em; overflow-wrap: normal; word-break: keep-all; hyphens: none;">{{ activeTitle }}</div>
+      <div style="font-size: {{ bodySize }}; line-height: 1.5; color: oklch(0.32 0.008 260); text-wrap: pretty;">{{ activeBody }}</div>
+    </div>
+  </div>
+
+  <div style="position: absolute; z-index: 6; left: {{ nameLeft }}; right: {{ nameRight }}; bottom: {{ nameBottom }}; text-align: {{ nameAlign }}; animation: nameIn 2400ms cubic-bezier(0.16, 1, 0.3, 1) both; transition: transform 1500ms cubic-bezier(0.16, 1, 0.3, 1), opacity 900ms ease; opacity: {{ nameOpacity }}; visibility: {{ nameVisibility }};">
+    <div onClick="{{ toggleAbout }}" style="cursor: pointer; transition: transform 1500ms cubic-bezier(0.16, 1, 0.3, 1); transform: translateX({{ nameX }}) scale({{ nameScale }}); transform-origin: {{ nameOrigin }};">
+      <div ref="{{ refWrap }}" style="width: {{ nameBlockWidth }}; margin-left: {{ nameBlockOffset }}; margin-right: {{ nameBlockOffset }}; font-family: 'Archivo', 'Helvetica Neue', sans-serif; font-variation-settings: 'wdth' 118; font-weight: 700; text-transform: uppercase; font-size: clamp(40px, 7.4vw, 108px); line-height: 0.86; letter-spacing: -0.02em;">
+        <div style="overflow: hidden;">
+          <div ref="{{ refLine1 }}" style="display: inline-block; transform-origin: {{ lineOrigin }}; white-space: nowrap; transform: scaleX({{ k1 }});">{{ nameLine1 }}</div>
+        </div>
+        <div style="overflow: hidden;">
+          <div ref="{{ refLine2 }}" style="display: inline-block; transform-origin: {{ lineOrigin }}; white-space: nowrap; transform: scaleX({{ k2 }});">{{ nameLine2 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div onClick="{{ stop }}" style="position: absolute; z-index: 8; left: {{ zoomLeft }}; transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), opacity 800ms ease; width: {{ zoomWidth }}; height: {{ zoomHeight }}; top: {{ zoomTop }}; bottom: {{ zoomBottom }}; transform: translate({{ zoomTX }}, {{ zoomTY }}) scale({{ zoomScale }}); opacity: {{ zoomOpacity }}; pointer-events: {{ zoomPointer }}; background: {{ zoomBg }}; box-shadow: 0 28px 70px oklch(0.2 0.01 260 / 0.16);">
+    <div style="position: absolute; left: 16px; bottom: 14px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: {{ captionSize }}; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.28 0.008 260);">{{ zoomCaption }}</div>
+  </div>
+
+  <div onClick="{{ stop }}" style="position: absolute; z-index: 10; left: {{ aboutImgLeft }}; width: {{ aboutImgWidth }}; height: {{ zoomHeight }}; top: {{ zoomTop }}; bottom: {{ zoomBottom }}; transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), opacity 800ms ease; transform: translate({{ zoomTX }}, {{ zoomTY }}) scale({{ aboutScale }}); opacity: {{ aboutOpacity }}; pointer-events: {{ aboutPointer }}; background: {{ aboutBg }}; box-shadow: 0 28px 70px oklch(0.2 0.01 260 / 0.16);"></div>
+
+  <div onClick="{{ stop }}" style="position: absolute; z-index: 12; transition: transform 1400ms cubic-bezier(0.16, 1, 0.3, 1), opacity 800ms ease; max-width: {{ aboutCopyMaxWidth }}; top: {{ copyTop }}; bottom: {{ copyBottom }}; left: {{ aboutCopyLeft }}; right: {{ aboutCopyRight }}; padding: {{ copyPad }}; background: {{ copyBg }}; transform: translateX({{ aboutCopyX }}); opacity: {{ aboutOpacity }}; pointer-events: {{ aboutPointer }};">
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: oklch(0.48 0.006 260);">About</div>
+      <div style="font-family: 'Archivo', 'Helvetica Neue', sans-serif; font-variation-settings: 'wdth' 112; font-weight: 600; text-transform: uppercase; font-size: {{ titleSize }}; line-height: 1.08; letter-spacing: 0.005em;">{{ ownerName }}</div>
+      <div style="font-size: {{ bodySize }}; line-height: 1.5; color: oklch(0.26 0.008 260); text-wrap: pretty;">{{ aboutText }}</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;">
+        <a href="mailto:hello@example.com" style="padding: 9px 14px; border: 1px solid oklch(0.3 0.045 205 / 0.45);">Contact</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; z-index: 7; top: 4vh; left: 4vw; display: flex; gap: 20px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: oklch(0.34 0.008 260); animation: softIn 2600ms 600ms ease both;">
+    
+    
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;ownerName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Johann Schmitz&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;aboutText&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Product designer working across interfaces, systems, and the details in between. Currently open to new work.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;portrait&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+class Component extends DCLogic {
+  state = { active: null, zoom: null, about: false, k1: 1, k2: 1, narrow: typeof window !== "undefined" && window.innerWidth < 640 };
+
+  componentDidMount() {
+    this._key = (e) => { if (e.key === "Escape") this.setState(s => s.about ? { about: false } : (s.zoom !== null ? { zoom: null } : { active: null })); };
+    this._resize = () => {
+      const n = window.innerWidth < 640;
+      if (n !== this.state.narrow) this.setState({ narrow: n });
+      this._measure();
+    };
+    window.addEventListener("keydown", this._key);
+    window.addEventListener("resize", this._resize);
+    this._measure();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(this._measure);
+    setTimeout(this._measure, 400);
+  }
+  componentDidUpdate() { this._measure(); }
+
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this._key);
+    window.removeEventListener("resize", this._resize);
+  }
+
+  refWrap = (el) => { this._wrap = el; };
+  refLine1 = (el) => { this._l1 = el; };
+  refLine2 = (el) => { this._l2 = el; };
+
+  _measure = () => {
+    const c = this._wrap, a = this._l1, b = this._l2;
+    if (!c || !a || !b) return;
+    const W = c.offsetWidth;
+    const k1 = a.offsetWidth ? W / a.offsetWidth : 1;
+    const k2 = b.offsetWidth ? W / b.offsetWidth : 1;
+    if (Math.abs(k1 - this.state.k1) > 0.004 || Math.abs(k2 - this.state.k2) > 0.004) this.setState({ k1: k1, k2: k2 });
+  };
+
+  closeCase = () => this.setState({ active: null, zoom: null, about: false });
+  goHome = () => this.setState({ active: null, zoom: null, about: false });
+  stop = (e) => { e.stopPropagation(); };
+  closeZoom = () => this.setState({ zoom: null });
+  toggleAbout = (e) => { if (e) e.stopPropagation(); this.setState(s => ({ about: !s.about, zoom: null })); };
+  closeAbout = (e) => { if (e) e.stopPropagation(); this.setState({ about: false }); };
+
+  // ——— YOUR CONTENT ———
+  // Drop uploaded files in as "uploads/<file>.jpg". Empty src = striped placeholder.
+  cases() {
+    return [
+      { title: "ARC III", body: "Short description of ARC III.", cover: "img/arc-iii/arc-iii-1.jpg",
+        shots: [
+          { src: "img/arc-iii/img-4591.jpg", caption: "ARC III — 01" },
+          { src: "img/arc-iii/img-4692.jpg", caption: "ARC III — 02" },
+          { src: "img/arc-iii/img-4633.jpg", caption: "ARC III — 03" },
+          { src: "img/arc-iii/img-4648.jpg", caption: "ARC III — 04" },
+          { src: "img/arc-iii/img-4565.jpg", caption: "ARC III — 05" },
+          { src: "img/arc-iii/img-4425.jpg", caption: "ARC III — 06" },
+          { src: "img/arc-iii/img-4703.jpg", caption: "ARC III — 07" },
+          { src: "img/arc-iii/img-4702.jpg", caption: "ARC III — 08" },
+          { src: "img/arc-iii/img-4724.jpg", caption: "ARC III — 09" },
+          { src: "img/arc-iii/img-4325.jpg", caption: "ARC III — 10" },
+          { src: "img/arc-iii/img-4396.jpg", caption: "ARC III — 11" },
+          { src: "img/arc-iii/img-4732.jpg", caption: "ARC III — 12" },
+          { src: "img/arc-iii/img-4582.jpg", caption: "ARC III — 13" }
+        ] },
+      { title: "Buchhalter", body: "Short description of Buchhalter.", cover: "img/buchhalter/buchhalter-1.jpg",
+        shots: [
+          { src: "img/buchhalter/img-0067.jpg", caption: "Buchhalter — 01" },
+          { src: "img/buchhalter/img-0063.jpg", caption: "Buchhalter — 02" },
+          { src: "img/buchhalter/img-0069.jpg", caption: "Buchhalter — 03" },
+          { src: "img/buchhalter/img-0066.jpg", caption: "Buchhalter — 04" }
+        ] },
+      { title: "Deckenlampe Geflecht", body: "Short description of Deckenlampe Geflecht.", cover: "img/deckenlampe-geflecht/deckenlampe-1.jpg",
+        shots: [
+          { src: "img/deckenlampe-geflecht/-dsc7787.jpg", caption: "Deckenlampe Geflecht — 01" },
+          { src: "img/deckenlampe-geflecht/-dsc7818.jpg", caption: "Deckenlampe Geflecht — 02" },
+          { src: "img/deckenlampe-geflecht/-dsc7783.jpg", caption: "Deckenlampe Geflecht — 03" }
+        ] },
+      { title: "Draeger", body: "Short description of Draeger.", cover: "img/draeger/draeger-1.jpg",
+        shots: [
+          { src: "img/draeger/img-2742.jpg", caption: "Draeger — 01" },
+          { src: "img/draeger/img-2744.jpg", caption: "Draeger — 02" },
+          { src: "img/draeger/img-2743.jpg", caption: "Draeger — 03" },
+          { src: "img/draeger/img-2748.jpg", caption: "Draeger — 04" },
+          { src: "img/draeger/img-2747.jpg", caption: "Draeger — 05" },
+          { src: "img/draeger/img-2749.jpg", caption: "Draeger — 06" },
+          { src: "img/draeger/img-2750.jpg", caption: "Draeger — 07" },
+          { src: "img/draeger/img-2740.jpg", caption: "Draeger — 08" },
+          { src: "img/draeger/img-2751.jpg", caption: "Draeger — 09" },
+          { src: "img/draeger/img-2755.jpg", caption: "Draeger — 10" }
+        ] },
+      { title: "Hanging Shelves", body: "Short description of Hanging Shelves.", cover: "img/hangingshelves/hangingshelves-1.jpg",
+        shots: [
+          { src: "img/hangingshelves/-dsc7761.jpg", caption: "Hanging Shelves — 01" },
+          { src: "img/hangingshelves/img-0107.jpg", caption: "Hanging Shelves — 02" },
+          { src: "img/hangingshelves/img-0013.jpg", caption: "Hanging Shelves — 03" },
+          { src: "img/hangingshelves/img-0114.jpg", caption: "Hanging Shelves — 04" },
+          { src: "img/hangingshelves/img-0011.jpg", caption: "Hanging Shelves — 05" },
+          { src: "img/hangingshelves/img-0108.jpg", caption: "Hanging Shelves — 06" },
+          { src: "img/hangingshelves/img-0033-2.jpg", caption: "Hanging Shelves — 07" }
+        ] },
+      { title: "Juicy", body: "Short description of Juicy.", cover: "img/juicy/juicy-1.jpg",
+        shots: [
+          { src: "img/juicy/-86a7758.jpg", caption: "Juicy — 01" },
+          { src: "img/juicy/-86a7770.jpg", caption: "Juicy — 02" },
+          { src: "img/juicy/-86a7798.jpg", caption: "Juicy — 03" },
+          { src: "img/juicy/pink-smooth-front.jpg", caption: "Juicy — 04" },
+          { src: "img/juicy/pink-smooth.jpg", caption: "Juicy — 05" },
+          { src: "img/juicy/pink-smooth-top-closeup.jpg", caption: "Juicy — 06" },
+          { src: "img/juicy/-86a7793.jpg", caption: "Juicy — 07" },
+          { src: "img/juicy/-86a7756.jpg", caption: "Juicy — 08" },
+          { src: "img/juicy/-86a7800.jpg", caption: "Juicy — 09" },
+          { src: "img/juicy/-86a7789.jpg", caption: "Juicy — 10" },
+          { src: "img/juicy/-86a7764.jpg", caption: "Juicy — 11" },
+          { src: "img/juicy/pink-smooth-side-angle.jpg", caption: "Juicy — 12" }
+        ] },
+      { title: "Newsbit", body: "Short description of Newsbit.", cover: "img/newsbit/newsbit1.jpg",
+        shots: [
+          { src: "img/newsbit/img-5026.jpg", caption: "Newsbit — 01" },
+          { src: "img/newsbit/img-5027.jpg", caption: "Newsbit — 02" },
+          { src: "img/newsbit/img-5021.jpg", caption: "Newsbit — 03" },
+          { src: "img/newsbit/img-5020.jpg", caption: "Newsbit — 04" },
+          { src: "img/newsbit/img-5025.jpg", caption: "Newsbit — 05" },
+          { src: "img/newsbit/img-5023.jpg", caption: "Newsbit — 06" },
+          { src: "img/newsbit/img-5024.jpg", caption: "Newsbit — 07" }
+        ] },
+      { title: "Short Project Lamp", body: "Short description of Short Project Lamp.", cover: "img/short-project-lamp/short-project-lamp-1.jpg",
+        shots: [
+          { src: "img/short-project-lamp/img-1831.jpg", caption: "Short Project Lamp — 01" },
+          { src: "img/short-project-lamp/img-1836.jpg", caption: "Short Project Lamp — 02" },
+          { src: "img/short-project-lamp/img-1826.jpg", caption: "Short Project Lamp — 03" },
+          { src: "img/short-project-lamp/img-1842.jpg", caption: "Short Project Lamp — 04" },
+          { src: "img/short-project-lamp/img-1851.jpg", caption: "Short Project Lamp — 05" },
+          { src: "img/short-project-lamp/img-1825.jpg", caption: "Short Project Lamp — 06" },
+          { src: "img/short-project-lamp/img-1850.jpg", caption: "Short Project Lamp — 07" },
+          { src: "img/short-project-lamp/img-1856.jpg", caption: "Short Project Lamp — 08" }
+        ] },
+      { title: "Wandlampe", body: "Short description of Wandlampe.", cover: "img/wandlampe/wandlampe-1.jpg",
+        shots: [
+          { src: "img/wandlampe/img-0056.jpg", caption: "Wandlampe — 01" },
+          { src: "img/wandlampe/-dsc7778.jpg", caption: "Wandlampe — 02" },
+          { src: "img/wandlampe/-dsc7777.jpg", caption: "Wandlampe — 03" },
+          { src: "img/wandlampe/img-0051.jpg", caption: "Wandlampe — 04" }
+        ] }
+    ];
+  }
+  _bg(src, tint) {
+    if (src) return 'center / cover no-repeat url("' + src + '")';
+    return 'repeating-linear-gradient(107deg, oklch(0.2 0.01 260 / 0.1) 0 1px, transparent 1px 11px) ' + tint;
+  }
+
+  renderVals() {
+    const list = this.cases();
+    const a = this.state.active;
+    const open = a !== null;
+    const z = this.state.zoom;
+    const narrow = this.state.narrow;
+    const small = open || this.state.about;
+    const words = String(this.props.ownerName ?? "Johann Schmitz").trim().split(/\s+/);
+    const nameParts = [words[0] || "", words.slice(1).join(" ")];
+    const pad = (i) => String(i + 1).padStart(2, "0");
+    // fit the longest word without ever hyphenating
+    const W = typeof window !== "undefined" ? window.innerWidth : 1440;
+    const avail = narrow ? (0.44 * W - 30) : Math.min(Math.max(220, 0.21 * W), 300) - 46;
+    const headline = this.state.about ? String(this.props.ownerName ?? "Johann Schmitz") : (open ? String(list[a].title) : "");
+    const longest = headline ? headline.split(/\s+/).reduce((m, w2) => Math.max(m, w2.length), 1) : 1;
+    const titleSize = Math.max(11, Math.min(narrow ? 21 : 30, Math.floor(avail / (0.63 * longest)))) + "px";
+    const H = ["46vh"];
+    const S = ["-6vw", "4vw", "-12vw", "8vw", "-4vw", "2vw", "10vw", "-8vw"];
+
+    const idx = list.map((c, i) => ({
+      title: c.title, num: pad(i), h: H[i % H.length], shift: S[i % S.length],
+      bg: this._bg(c.cover, "oklch(0.88 0.004 260)"),
+      open: (e) => { e.stopPropagation(); this.setState({ active: i, zoom: null, about: false }); }
+    }));
+
+    const shots = open ? list[a].shots : list[0].shots;
+    const proj = shots.map((s, i) => ({
+      caption: s.caption,
+      h: H[(i + 2) % H.length], shift: S[(i + 3) % S.length],
+      bg: this._bg(s.src, "oklch(0.9 0.004 260)"),
+      open: (e) => { e.stopPropagation(); this.setState({ zoom: i, about: false }); }
+    }));
+    const zs = z !== null && open ? shots[z] : null;
+
+    return {
+      closeCase: this.closeCase,
+      goHome: this.goHome,
+      stop: this.stop,
+      toggleAbout: this.toggleAbout,
+      closeAbout: this.closeAbout,
+      aboutOpacity: this.state.about ? 1 : 0,
+      aboutPointer: this.state.about ? "auto" : "none",
+      aboutScale: this.state.about ? 1 : 0.84,
+      aboutCopyX: this.state.about ? "0vw" : (narrow ? "18vw" : "-14vw"),
+      aboutImgLeft: narrow ? "3vw" : (open ? "55vw" : "5vw"),
+      aboutImgWidth: narrow ? "94vw" : "min(40vw, 640px)",
+      aboutCopyMaxWidth: narrow ? "42vw" : "clamp(220px, 21vw, 300px)",
+      aboutCopyLeft: narrow ? (open ? "auto" : "3vw") : (open ? "30vw" : "auto"),
+      aboutCopyRight: narrow ? (open ? "3vw" : "auto") : (open ? "auto" : "30vw"),
+      aboutBg: this._bg(this.props.portrait ?? "", "oklch(0.87 0.004 260)"),
+      aboutText: this.props.aboutText ?? "Product designer working across interfaces, systems, and the details in between. Currently open to new work.",
+      closeZoom: this.closeZoom,
+      zoomCaption: zs ? zs.caption : "",
+      zoomBg: this._bg(zs ? zs.src : "", "oklch(0.84 0.004 260)"),
+      zoomOpacity: zs && !this.state.about ? 1 : 0,
+      zoomPointer: zs && !this.state.about ? "auto" : "none",
+      zoomScale: zs ? 1 : 0.84,
+      zoomWidth: narrow ? "94vw" : "min(40vw, 640px)",
+      zoomLeft: narrow ? "3vw" : "55vw",
+      zoomHeight: narrow ? "41vh" : "70vh",
+      zoomTop: narrow ? "auto" : "50%",
+      zoomBottom: narrow ? "9vh" : "auto",
+      zoomTX: "0%",
+      zoomTY: narrow ? "0%" : "-50%",
+      streamOverhang: "-8vw",
+      streamWidth: narrow ? "61vw" : "38vw",
+      captionSize: narrow ? "8px" : "10px",
+      titleSize: titleSize,
+      bodySize: narrow ? "12px" : "clamp(14px, 1.1vw, 16px)",
+      driftIndexDur: narrow ? "60s" : "34s",
+      driftProjDur: narrow ? "40s" : "24s",
+      nameX: !narrow && open ? "calc(91vw - 225px)" : (!narrow && this.state.about ? "1vw" : "0px"),
+      nameLeft: narrow ? "6vw" : "4vw",
+      nameRight: narrow ? "6vw" : "auto",
+      nameAlign: narrow ? "center" : "left",
+      nameOrigin: narrow ? "center bottom" : "left bottom",
+      lineOrigin: narrow ? "center center" : "left center",
+      nameBlockOffset: narrow ? "auto" : "0px",
+      nameBlockWidth: narrow ? "88vw" : "535px",
+      nameBottom: narrow && small ? "3.5vh" : "5vh",
+      nameLine1: nameParts[0],
+      nameLine2: nameParts[1],
+      k1: this.state.k1,
+      k2: this.state.k2,
+      refWrap: this.refWrap,
+      refLine1: this.refLine1,
+      refLine2: this.refLine2,
+      ownerName: this.props.ownerName ?? "Johann Schmitz",
+      indexStream: idx.concat(idx),
+      projectStream: proj.concat(proj),
+      indexStreamX: open ? "72vw" : "0vw",
+      indexStreamOpacity: open ? 0 : 1,
+      indexPointer: open ? "none" : "auto",
+      projectStreamX: open ? "0vw" : "-60vw",
+      projectStreamOpacity: open ? 1 : 0,
+      heroSlideX: open ? "0px" : "78vw",
+      heroScale: open ? 1 : 0.86,
+      heroOpacity: open && !zs && !this.state.about ? 1 : 0,
+      heroVisibility: open && !zs && !this.state.about ? "visible" : "hidden",
+      heroBg: this._bg(open ? list[a].cover : "", "oklch(0.86 0.004 260)"),
+      heroCaption: open ? pad(a) + " — " + list[a].title : "",
+      activeTitle: open ? list[a].title : "",
+      activeBody: open ? list[a].body : "",
+      activeMeta: open ? pad(a) + " / " + pad(list.length - 1) : "",
+      copyTop: narrow ? "7vh" : "16vh",
+      copyBottom: "auto",
+      copyLeft: narrow ? "auto" : "30vw",
+      copyRight: narrow ? "3vw" : "auto",
+      copyMaxWidth: narrow ? "44vw" : "clamp(220px, 21vw, 300px)",
+      copyPad: narrow ? "14px 14px 16px" : "20px 22px 22px",
+      copyBg: "oklch(1 0 0)",
+      copyX: open ? "0vw" : (narrow ? "18vw" : "-14vw"),
+      nameOpacity: 1,
+      nameVisibility: "visible",
+      copyOpacity: open && !this.state.about ? 1 : 0,
+      copyPointer: open && !this.state.about ? "auto" : "none",
+      nameScale: narrow ? (small ? 0.42 : 1) : (small ? 0.42 : 0.64),
+      taglineOpacity: narrow ? 1 : (open ? 0 : 1),
+      hintOpacity: open ? 0 : 1
+    };
+  }
+}
+
+</script>
+</body>
+</html>
