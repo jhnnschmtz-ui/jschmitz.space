@@ -28,7 +28,7 @@
 <div onClick="{{ goHome }}" style="position: fixed; inset: 0; overflow: hidden; background: oklch(1 0 0); color: oklch(0.2 0.008 260); font-family: 'Work Sans', system-ui, sans-serif; font-weight: 300;">
 
   <div style="position: absolute; top: 0; right: {{ streamOverhang }}; width: {{ streamWidth }}; height: 100%; transition: transform 1500ms cubic-bezier(0.16, 1, 0.3, 1), opacity 1100ms ease; transform: translateX({{ indexStreamX }}); opacity: {{ indexStreamOpacity }}; pointer-events: {{ indexPointer }};">
-    <div style="display: flex; flex-direction: column; gap: 11vh; animation: driftDown {{ driftIndexDur }} linear infinite; will-change: transform;">
+    <div style="display: flex; flex-direction: column; gap: 11vh; will-change: transform;" ref="{{ refIdx }}">
       <sc-for list="{{ indexStream }}" as="c" hint-placeholder-count="10">
         <div onClick="{{ c.open }}" style="flex: none; cursor: pointer; height: {{ c.h }}; width: 100%; background: {{ c.bg }}; transition: filter 700ms ease;" style-hover="filter: brightness(1.08);">
         </div>
@@ -37,7 +37,7 @@
   </div>
 
   <div style="position: absolute; top: 0; left: {{ streamOverhang }}; width: {{ streamWidth }}; height: 100%; transition: transform 1500ms cubic-bezier(0.16, 1, 0.3, 1), opacity 1100ms 200ms ease; transform: translateX({{ projectStreamX }}); opacity: {{ projectStreamOpacity }};">
-    <div style="display: flex; flex-direction: column; gap: 9vh; animation: driftUp {{ driftProjDur }} linear infinite; will-change: transform; position: relative">
+    <div style="display: flex; flex-direction: column; gap: 9vh; will-change: transform; position: relative" ref="{{ refProj }}">
       <sc-for list="{{ projectStream }}" as="p" hint-placeholder-count="8">
         <div onClick="{{ p.open }}" style="flex: none; cursor: pointer; height: {{ p.h }}; width: 100%; background: {{ p.bg }};">
         </div>
@@ -107,19 +107,87 @@ class Component extends DCLogic {
       const n = window.innerWidth < 640;
       if (n !== this.state.narrow) this.setState({ narrow: n });
       this._measure();
+      this._measureStreams();
     };
+    this._wheel = (e) => { this._push(e.deltaY * 5, false); };
+    this._tstart = (e) => { this._ty = e.touches[0].clientY; this._tt = performance.now(); this._moved = 0; };
+    this._tmove = (e) => {
+      const y = e.touches[0].clientY, now = performance.now();
+      const dy = y - this._ty, dt = Math.max(8, now - this._tt);
+      this._ty = y; this._tt = now; this._moved += Math.abs(dy);
+      this._push(-dy * 1.6, true);
+      this._lastV = (-dy / dt) * 1000 * 1.6;
+    };
+    this._tend = () => { if (this._moved > 10 && this._lastV) this._push(this._lastV * 0.6, false); this._lastV = 0; };
     window.addEventListener("keydown", this._key);
     window.addEventListener("resize", this._resize);
+    window.addEventListener("wheel", this._wheel, { passive: true });
+    window.addEventListener("touchstart", this._tstart, { passive: true });
+    window.addEventListener("touchmove", this._tmove, { passive: true });
+    window.addEventListener("touchend", this._tend, { passive: true });
+    this._measureStreams();
+    this._startDrift();
     this._measure();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(this._measure);
     setTimeout(this._measure, 400);
   }
-  componentDidUpdate() { this._measure(); }
+  componentDidUpdate() { this._measure(); this._measureStreams(); }
 
   componentWillUnmount() {
     window.removeEventListener("keydown", this._key);
     window.removeEventListener("resize", this._resize);
+    window.removeEventListener("wheel", this._wheel);
+    window.removeEventListener("touchstart", this._tstart);
+    window.removeEventListener("touchmove", this._tmove);
+    window.removeEventListener("touchend", this._tend);
+    if (this._raf) cancelAnimationFrame(this._raf);
   }
+
+  _st = { idx: { el: null, off: 0, v: 0, copy: 0, dur: 34 }, proj: { el: null, off: 0, v: 0, copy: 0, dur: 24 } };
+
+  refIdx = (el) => { this._st.idx.el = el; };
+  refProj = (el) => { this._st.proj.el = el; };
+
+  _sign = (k) => (k === "idx" ? -1 : 1);
+
+  _measureStreams = () => {
+    for (const k of ["idx", "proj"]) {
+      const s = this._st[k], el = s.el;
+      if (!el) continue;
+      const kids = el.children;
+      const n = Math.floor(kids.length / 2);
+      s.copy = n > 0 && kids[n] ? kids[n].offsetTop - kids[0].offsetTop : 0;
+      s.dur = this.state.narrow ? (k === "idx" ? 60 : 40) : (k === "idx" ? 34 : 24);
+    }
+  };
+
+  _startDrift = () => {
+    const tick = (t) => {
+      const dt = Math.min(0.06, (t - (this._last || t)) / 1000);
+      this._last = t;
+      for (const k of ["idx", "proj"]) {
+        const s = this._st[k];
+        if (!s.el || !s.copy) continue;
+        const base = this._sign(k) * (s.copy / s.dur);
+        s.off += (base + s.v) * dt;
+        s.v *= Math.pow(0.9, dt * 60);
+        if (Math.abs(s.v) < 0.5) s.v = 0;
+        s.off = ((s.off % s.copy) + s.copy) % s.copy;
+        s.el.style.transform = "translateY(" + (-s.off) + "px)";
+      }
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  };
+
+  _push = (amount, drag) => {
+    for (const k of ["idx", "proj"]) {
+      const s = this._st[k];
+      if (!s.copy) continue;
+      if (drag) s.off += amount * this._sign(k);
+      else s.v += amount * this._sign(k);
+    }
+  };
 
   refWrap = (el) => { this._wrap = el; };
   refLine1 = (el) => { this._l1 = el; };
@@ -262,14 +330,14 @@ class Component extends DCLogic {
     const avail = narrow ? (0.44 * W - 30) : Math.min(Math.max(220, 0.21 * W), 300) - 46;
     const headline = this.state.about ? String(this.props.ownerName ?? "Johann Schmitz") : (open ? String(list[a].title) : "");
     const longest = headline ? headline.split(/\s+/).reduce((m, w2) => Math.max(m, w2.length), 1) : 1;
-    const titleSize = Math.max(11, Math.min(narrow ? 21 : 30, Math.floor(avail / (0.63 * longest)))) + "px";
-    const H = ["46vh"];
+    const titleSize = Math.max(11, Math.min(narrow ? 21 : 30, Math.floor(avail / (0.84 * longest)))) + "px";
+    const H = [narrow ? "46vh" : "38vw"];
     const S = ["-6vw", "4vw", "-12vw", "8vw", "-4vw", "2vw", "10vw", "-8vw"];
 
     const idx = list.map((c, i) => ({
       title: c.title, num: pad(i), h: H[i % H.length], shift: S[i % S.length],
       bg: this._bg(c.cover, "oklch(0.88 0.004 260)"),
-      open: (e) => { e.stopPropagation(); this.setState({ active: i, zoom: null, about: false }); }
+      open: (e) => { e.stopPropagation(); if (this._moved > 10) return; this.setState({ active: i, zoom: null, about: false }); }
     }));
 
     const shots = open ? list[a].shots : list[0].shots;
@@ -277,7 +345,7 @@ class Component extends DCLogic {
       caption: s.caption,
       h: H[(i + 2) % H.length], shift: S[(i + 3) % S.length],
       bg: this._bg(s.src, "oklch(0.9 0.004 260)"),
-      open: (e) => { e.stopPropagation(); this.setState({ zoom: i, about: false }); }
+      open: (e) => { e.stopPropagation(); if (this._moved > 10) return; this.setState({ zoom: i, about: false }); }
     }));
     const zs = z !== null && open ? shots[z] : null;
 
@@ -291,11 +359,11 @@ class Component extends DCLogic {
       aboutPointer: this.state.about ? "auto" : "none",
       aboutScale: this.state.about ? 1 : 0.84,
       aboutCopyX: this.state.about ? "0vw" : (narrow ? "18vw" : "-14vw"),
-      aboutImgLeft: narrow ? "3vw" : (open ? "55vw" : "5vw"),
-      aboutImgWidth: narrow ? "94vw" : "min(40vw, 640px)",
+      aboutImgLeft: narrow ? "3vw" : (open ? "calc(95vw - min(40vw, 62vh, 640px))" : "5vw"),
+      aboutImgWidth: narrow ? "min(94vw, 44vh)" : "min(40vw, 62vh, 640px)",
       aboutCopyMaxWidth: narrow ? "42vw" : "clamp(220px, 21vw, 300px)",
-      aboutCopyLeft: narrow ? (open ? "auto" : "3vw") : (open ? "30vw" : "auto"),
-      aboutCopyRight: narrow ? (open ? "3vw" : "auto") : (open ? "auto" : "30vw"),
+      aboutCopyLeft: narrow ? (open ? "auto" : "3vw") : (open ? "auto" : "calc(5vw + min(40vw, 62vh, 640px) + 40px)"),
+      aboutCopyRight: narrow ? (open ? "3vw" : "auto") : (open ? "calc(5vw + min(40vw, 62vh, 640px) + 40px)" : "auto"),
       aboutBg: this._bg(this.props.portrait ?? "", "oklch(0.87 0.004 260)"),
       aboutText: this.props.aboutText ?? "Product designer working across interfaces, systems, and the details in between. Currently open to new work.",
       closeZoom: this.closeZoom,
@@ -304,9 +372,9 @@ class Component extends DCLogic {
       zoomOpacity: zs && !this.state.about ? 1 : 0,
       zoomPointer: zs && !this.state.about ? "auto" : "none",
       zoomScale: zs ? 1 : 0.84,
-      zoomWidth: narrow ? "94vw" : "min(40vw, 640px)",
-      zoomLeft: narrow ? "3vw" : "55vw",
-      zoomHeight: narrow ? "41vh" : "70vh",
+      zoomWidth: narrow ? "min(94vw, 44vh)" : "min(40vw, 62vh, 640px)",
+      zoomLeft: narrow ? "3vw" : "calc(95vw - min(40vw, 62vh, 640px))",
+      zoomHeight: narrow ? "min(94vw, 44vh)" : "min(40vw, 62vh, 640px)",
       zoomTop: narrow ? "auto" : "50%",
       zoomBottom: narrow ? "9vh" : "auto",
       zoomTX: "0%",
@@ -332,6 +400,8 @@ class Component extends DCLogic {
       k1: this.state.k1,
       k2: this.state.k2,
       refWrap: this.refWrap,
+      refIdx: this.refIdx,
+      refProj: this.refProj,
       refLine1: this.refLine1,
       refLine2: this.refLine2,
       ownerName: this.props.ownerName ?? "Johann Schmitz",
@@ -351,10 +421,10 @@ class Component extends DCLogic {
       activeTitle: open ? list[a].title : "",
       activeBody: open ? list[a].body : "",
       activeMeta: open ? pad(a) + " / " + pad(list.length - 1) : "",
-      copyTop: narrow ? "7vh" : "16vh",
+      copyTop: narrow ? "7vh" : "calc(50vh - min(20vw, 31vh, 320px) - 20px)",
       copyBottom: "auto",
-      copyLeft: narrow ? "auto" : "30vw",
-      copyRight: narrow ? "3vw" : "auto",
+      copyLeft: narrow ? "auto" : "auto",
+      copyRight: narrow ? "3vw" : "calc(5vw + min(40vw, 62vh, 640px) + 40px)",
       copyMaxWidth: narrow ? "44vw" : "clamp(220px, 21vw, 300px)",
       copyPad: narrow ? "14px 14px 16px" : "20px 22px 22px",
       copyBg: "oklch(1 0 0)",
