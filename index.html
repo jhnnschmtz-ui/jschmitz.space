@@ -287,9 +287,9 @@ ${this.ind(6, i, st.pause, m, PJ.map(q => ({ ...heroOf(q, m), cap: q.t })), 'i')
   pinfo(st, m) { const i = st.i || 0, p = PJ[i], A = p.all, f = Math.min(st.ph || 0, A.length - 1), cur = A[f], two = k => String(k + 1).padStart(2, '0');
     const prev = `ph=${(f + A.length - 1) % A.length}`, next = `ph=${(f + 1) % A.length}`, text = M(p.text, t => `<p style="margin-top:14px;font-size:15px;line-height:1.55">${t}</p>`);
     if (m) return `<div style="font-family:'Courier Prime',monospace;font-size:12px;color:#eee;background:#111"><div style="position:relative;height:540px;overflow:hidden;background:#111"><div class="car" data-key="ph" style="display:flex;height:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain">${M(A, q => `<div style="flex:0 0 100%;height:100%;position:relative;scroll-snap-align:start;scroll-snap-stop:always">${cropOf(q, 'mp') ? edImg(q, cropOf(q, 'mp')) : q.pz ? this.zoomOut(q) : coverImg(q, true)}</div>`)}</div><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,0) 25%);pointer-events:none"></div>${this.head(st, true)}
-<div style="position:absolute;left:20px;right:20px;bottom:16px;z-index:2;display:flex;justify-content:center;pointer-events:none"><span style="text-shadow:0 1px 6px rgba(0,0,0,.6)">swipe · ${two(f)} / ${String(A.length).padStart(2, '0')}</span></div></div>
+<div style="position:absolute;left:20px;right:20px;bottom:16px;z-index:2;display:flex;justify-content:center;pointer-events:none"><span class="sw-n" style="text-shadow:0 1px 6px rgba(0,0,0,.6)">swipe · ${two(f)} / ${String(A.length).padStart(2, '0')}</span></div></div>
 <div style="padding:10px 18px">${this.strip(A, f, p, 64, 48)}</div>
-<div style="padding:8px 20px 40px"><span style="color:#aaa">${cur.cap}</span><h1 style="font-size:32px;font-weight:400;margin:18px 0 2px;line-height:1.05${this.tf()}">${p.t}</h1><div style="margin-bottom:16px;color:#ccc">${p.n} / 06 — ${p.s}</div>${this.specs(p)}${M(p.text, t => `<p style="margin-top:14px;font-size:14px;line-height:1.55">${t}</p>`)}
+<div style="padding:8px 20px 40px"><span class="sw-cap" style="color:#aaa">${cur.cap}</span><h1 style="font-size:32px;font-weight:400;margin:18px 0 2px;line-height:1.05${this.tf()}">${p.t}</h1><div style="margin-bottom:16px;color:#ccc">${p.n} / 06 — ${p.s}</div>${this.specs(p)}${M(p.text, t => `<p style="margin-top:14px;font-size:14px;line-height:1.55">${t}</p>`)}
 ${this.pnav(i)}</div></div>`;
     const caption = `<span style="font-size:13px">${f >= p.photos.length ? 'PROCESS · ' : ''}FIG. ${two(f)} / ${String(A.length).padStart(2, '0')} — ${cur.cap}</span>`;
     const arrows = `<span style="display:flex;gap:10px"><button type="button" class="arrow" data-set="${prev}" aria-label="Previous photo">←</button><button type="button" class="arrow" data-set="${next}" aria-label="Next photo">→</button></span>`;
@@ -403,7 +403,7 @@ function preload() { /* fetch the next photo so the fade never waits for it */
 }
 function arm() {
   clearInterval(timer);
-  timer = setInterval(() => { if (document.hidden) return; const s = SITE.tick(st); if (s) apply(s, true); }, SITE.interval);
+  timer = setInterval(() => { if (document.hidden) return; const s = SITE.tick(st); if (!s) return; const m = /^ph=(\d+)$/.exec(s); if (m && glide(+m[1])) return; apply(s, true); }, SITE.interval);
 }
 function apply(spec, fromTick) {
   let changed = false, nav = false;
@@ -419,14 +419,30 @@ function apply(spec, fromTick) {
 window.addEventListener('popstate', () => { const s = fromHash(); st = { ...s, pause: st.pause }; window.scrollTo(0, 0); paint(); arm(); });
 root.addEventListener('click', e => {
   if (swiped) { e.preventDefault(); e.stopPropagation(); swiped = false; return; }
-  const t = e.target.closest('[data-set]'); if (t) { e.preventDefault(); apply(t.dataset.set); }
+  const t = e.target.closest('[data-set]'); if (!t) return; e.preventDefault();
+  const m = /^ph=(\d+)$/.exec(t.dataset.set); if (m && glide(+m[1])) return;
+  apply(t.dataset.set);
 });
 root.addEventListener('mouseover', e => { const t = e.target.closest('[data-hover]'); if (t) apply(t.dataset.hover); });
 /* phone photo carousel: keep the state in step with the swipe position */
+/* the filmstrip, counter and caption follow the swipe live; the page is never rebuilt while swiping */
+const two = k => String(k + 1).padStart(2, '0');
+function liveSync(c) {
+  const idx = Math.round(c.scrollLeft / Math.max(1, c.clientWidth)); if (idx === c._live) return; c._live = idx;
+  const A = PJ[st.i || 0].all;
+  root.querySelectorAll('.strip .th').forEach(b => { const on = b.dataset.set === 'ph=' + idx; b.style.outline = on ? '1px solid #fff' : 'none'; b.classList.toggle('fsOn', on); const im = b.querySelector('img'); if (im) im.style.opacity = on ? 1 : .55; });
+  const s = root.querySelector('.fsOn'); if (s) { const p = s.parentElement; p.scrollTo({ left: s.offsetLeft - p.clientWidth / 2 + s.offsetWidth / 2, behavior: 'smooth' }); }
+  const n = root.querySelector('.sw-n'); if (n) n.textContent = 'swipe · ' + two(idx) + ' / ' + String(A.length).padStart(2, '0');
+  const cp = root.querySelector('.sw-cap'); if (cp && A[idx]) cp.textContent = A[idx].cap;
+}
+function settle(c) { const idx = Math.round(c.scrollLeft / Math.max(1, c.clientWidth)); if ((st[c.dataset.key] || 0) !== idx) { st[c.dataset.key] = idx; tint(true); preload(); } arm(); }
 root.addEventListener('scroll', e => {
   const c = e.target; if (!c.classList || !c.classList.contains('car')) return;
-  clearTimeout(c._t); c._t = setTimeout(() => { if (!c.isConnected) return; const idx = Math.round(c.scrollLeft / Math.max(1, c.clientWidth)), k = c.dataset.key; if ((st[k] || 0) !== idx) apply(k + '=' + idx); }, 140);
+  if (!c._raf) c._raf = requestAnimationFrame(() => { c._raf = 0; if (c.isConnected) liveSync(c); });
+  clearTimeout(c._t); c._t = setTimeout(() => { if (c.isConnected) settle(c); }, 180);
 }, true);
+const carOf = () => isM() && (st.page || 'home') === 'project' ? root.querySelector('.car') : null;
+function glide(k) { const c = carOf(); if (!c) return false; c.scrollTo({ left: k * c.clientWidth, behavior: 'smooth' }); return true; }
 /* swipe on the phone start page; drag the filmstrip with the mouse */
 let sw = null, swiped = false, fsd = null;
 root.addEventListener('pointerdown', e => {
