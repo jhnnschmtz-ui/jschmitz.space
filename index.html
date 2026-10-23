@@ -413,9 +413,11 @@ function apply(spec, fromTick) {
   });
   if (!changed) return;
   const stay = nav && isM() && prevPg === 'project' && st.page === 'project', y = window.scrollY; /* phone: next/previous project keeps the scroll position */
+  const navRow = () => { const b = root.querySelector('button[data-set^="page=project&i="]'); return b && b.parentElement; };
+  const r0 = stay && navRow(), anchor = r0 ? r0.getBoundingClientRect().top : null; /* keep the previous/next row exactly where the finger was */
   if (nav) { if (!stay) window.scrollTo(0, 0); const h = toHash(); if (location.hash !== h) history.pushState(null, '', h); }
   paint();
-  if (stay) window.scrollTo(0, y);
+  if (stay) { const r1 = navRow(); window.scrollTo(0, r1 && anchor != null ? window.scrollY + r1.getBoundingClientRect().top - anchor : y); }
   if (!fromTick) arm();
 }
 window.addEventListener('popstate', () => { const s = fromHash(); st = { ...s, pause: st.pause }; window.scrollTo(0, 0); paint(); arm(); });
