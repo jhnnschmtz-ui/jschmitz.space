@@ -406,14 +406,16 @@ function arm() {
   timer = setInterval(() => { if (document.hidden) return; const s = SITE.tick(st); if (!s) return; const m = /^ph=(\d+)$/.exec(s); if (m && glide(+m[1])) return; apply(s, true); }, SITE.interval);
 }
 function apply(spec, fromTick) {
-  let changed = false, nav = false;
+  let changed = false, nav = false; const prevPg = st.page || 'home';
   spec.split('&').forEach(pair => {
     const eq = pair.indexOf('='), k = pair.slice(0, eq), raw = pair.slice(eq + 1), val = /^\d+$/.test(raw) ? parseInt(raw, 10) : raw;
     if (st[k] !== val) { st[k] = val; changed = true; if (k === 'page' || (k === 'i' && st.page === 'project')) nav = true; }
   });
   if (!changed) return;
-  if (nav) { window.scrollTo(0, 0); const h = toHash(); if (location.hash !== h) history.pushState(null, '', h); }
+  const stay = nav && isM() && prevPg === 'project' && st.page === 'project', y = window.scrollY; /* phone: next/previous project keeps the scroll position */
+  if (nav) { if (!stay) window.scrollTo(0, 0); const h = toHash(); if (location.hash !== h) history.pushState(null, '', h); }
   paint();
+  if (stay) window.scrollTo(0, y);
   if (!fromTick) arm();
 }
 window.addEventListener('popstate', () => { const s = fromHash(); st = { ...s, pause: st.pause }; window.scrollTo(0, 0); paint(); arm(); });
@@ -457,6 +459,16 @@ root.addEventListener('pointerup', e => {
 });
 root.addEventListener('pointercancel', () => { sw = null; fsd = null; });
 root.addEventListener('dragstart', e => { if (e.target.closest('.strip')) e.preventDefault(); });
+/* desktop start page: scrolling (mouse wheel or trackpad) changes the project, one step per gesture */
+let wAcc = 0, wLock = 0, wQuiet = null;
+root.addEventListener('wheel', e => {
+  if (isM() || (st.page || 'home') !== 'home') return;
+  e.preventDefault();
+  clearTimeout(wQuiet); wQuiet = setTimeout(() => { wAcc = 0; wLock = 0; }, 220);
+  if (wLock && Date.now() - wLock < 1100) return;
+  wAcc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(wAcc) > 40) { const i = st.i || 0; apply('i=' + (wAcc > 0 ? nx(i) : pv(i))); wAcc = 0; wLock = Date.now(); }
+}, { passive: false });
 root.addEventListener('wheel', e => {
   const s = e.target.closest('.strip'); if (!s || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
   const max = s.scrollWidth - s.clientWidth, next = s.scrollLeft + e.deltaY;
