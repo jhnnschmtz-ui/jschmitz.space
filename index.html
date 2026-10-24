@@ -487,20 +487,25 @@ root.addEventListener('touchmove', e => {
   if (!fd.dir) { if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; if (Math.abs(dy) > Math.abs(dx)) { fd = null; return; } clearInterval(timer); }
   const dir = dx < 0 ? 1 : -1;
   if (dir !== fd.dir) { if (fd.el) fd.el.remove(); fd.dir = dir; fd.k = dir > 0 ? nx(st.i || 0) : pv(st.i || 0); fd.el = peekFor(fd.k); fd.box.appendChild(fd.el); }
-  fd.p = Math.min(1, Math.abs(dx) / (window.innerWidth * .6));
+  fd.p = Math.min(1, Math.abs(dx) / (window.innerWidth * .95)); /* a full fade needs almost the whole screen width */
   const ease = fd.p * fd.p * (3 - 2 * fd.p);
   fd.el.style.opacity = ease; if (fd.cap) fd.cap.style.opacity = 1 - ease;
 }, { passive: true });
 root.addEventListener('touchend', e => {
   if (!fd) return; const f = fd; fd = null; if (!f.dir) return;
   swiped = true; setTimeout(() => { swiped = false; }, 450);
-  const fast = (Date.now() - f.t) < 260 && f.p > .08, done = f.p > .35 || fast;
-  f.el.style.transition = `opacity ${done ? .45 : .3}s ease-out`; if (f.cap) f.cap.style.transition = f.el.style.transition;
+  const done = f.p >= .5, ms = Math.round(done ? 250 + 650 * (1 - f.p) : 200 + 650 * f.p); /* past half: the fade carries on to the next project, before half: it eases back */
+  const tr = `opacity ${ms}ms cubic-bezier(.25,.1,.25,1)`; f.el.style.transition = tr; if (f.cap) f.cap.style.transition = tr;
   requestAnimationFrame(() => { f.el.style.opacity = done ? 1 : 0; if (f.cap) f.cap.style.opacity = done ? 0 : 1; });
-  setTimeout(() => {
-    if (done) { const h = heroOf(PJ[f.k], true); SITE._last = SITE._last || {}; SITE._last.p = { src: h.src, img: '' }; apply('i=' + f.k); }
-    else { f.el.remove(); arm(); }
-  }, done ? 460 : 310);
+  setTimeout(async () => {
+    if (!done) { f.el.remove(); arm(); return; }
+    /* keep the finished fade on screen while the page is rebuilt underneath, then let it go once the new photo is decoded: no black flash */
+    const r = f.box.getBoundingClientRect(); f.el.style.transition = 'none'; f.el.style.position = 'fixed'; f.el.style.left = r.left + 'px'; f.el.style.top = r.top + 'px'; f.el.style.width = r.width + 'px'; f.el.style.height = r.height + 'px'; f.el.style.inset = ''; f.el.style.zIndex = 50; document.body.appendChild(f.el);
+    const h = heroOf(PJ[f.k], true); SITE._last = SITE._last || {}; SITE._last.p = { src: h.src, img: '' }; apply('i=' + f.k);
+    const im = [...root.querySelectorAll('img')].find(x => x.getAttribute('src') === h.src);
+    try { if (im) await im.decode(); } catch (err) {}
+    requestAnimationFrame(() => requestAnimationFrame(() => { f.el.style.transition = 'opacity .2s linear'; f.el.style.opacity = 0; setTimeout(() => f.el.remove(), 220); }));
+  }, ms + 20);
 }, { passive: true });
 root.addEventListener('dragstart', e => { if (e.target.closest('.strip')) e.preventDefault(); });
 /* desktop start page: scrolling (mouse wheel or trackpad) changes the project, one step per gesture */
