@@ -378,10 +378,8 @@ let paintTok = 0;
 function paint(after, now) {
   const m = isM(), tok = ++paintTok, box = document.createElement('div');
   box.innerHTML = SITE.render(st, m);
-  const tO = box.querySelector('.t-o .kbw'), live = root.querySelector('.lay:not(.t-o) .kbw');
-  if (tO && live) { const tf = getComputedStyle(live).transform; live.style.animation = 'none'; live.style.transform = tf === 'none' ? '' : tf; tO.replaceWith(live); }
   const shown = new Set([...root.querySelectorAll('img')].filter(i => i.complete).map(i => i.getAttribute('src')));
-  const big = [...box.querySelectorAll('.lay:not(.t-o) img, .car img')].filter(i => !shown.has(i.getAttribute('src'))).slice(0, 3);
+  const big = [...box.querySelectorAll('.lay img, .car img')].filter(i => !shown.has(i.getAttribute('src'))).slice(0, 3);
   const swap = () => { if (tok === paintTok) commit(m, box, after); };
   if (now || !big.length || !big[0].decode) return swap();
   Promise.race([Promise.all(big.map(i => i.decode().catch(() => {}))), new Promise(r => setTimeout(r, 450))]).then(swap);
@@ -423,7 +421,7 @@ function preload() { /* fetch the next photo so the fade never waits for it */
 }
 function arm() {
   clearInterval(timer);
-  timer = setInterval(() => { if (document.hidden) return; const s = SITE.tick(st); if (!s) return; const m = /^(?:ph|i)=(\d+)$/.exec(s); if (m && glide(+m[1])) return; apply(s, true); }, SITE.interval);
+  timer = setInterval(() => { if (document.hidden) return; const s = SITE.tick(st); if (!s) return; const m = /^(?:ph|i)=(\d+)$/.exec(s); if (m && glide(+m[1])) return; const hi = /^i=(\d+)$/.exec(s); if (hi && isM() && (st.page || 'home') === 'home' && root.firstElementChild) return crossTo(+hi[1], 900); apply(s, true); }, SITE.interval);
 }
 function apply(spec, fromTick) {
   let changed = false, nav = false; const prevPg = st.page || 'home';
@@ -444,6 +442,7 @@ root.addEventListener('click', e => {
   if (swiped) { e.preventDefault(); e.stopPropagation(); swiped = false; return; }
   const t = e.target.closest('[data-set]'); if (!t) return; e.preventDefault();
   const m = /^ph=(\d+)$/.exec(t.dataset.set); if (m && glide(+m[1])) return;
+  const hi = /^i=(\d+)$/.exec(t.dataset.set); if (hi && isM() && (st.page || 'home') === 'home') { clearInterval(timer); return crossTo(+hi[1], 700); }
   apply(t.dataset.set);
 });
 root.addEventListener('mouseover', e => { const t = e.target.closest('[data-hover]'); if (t) apply(t.dataset.hover); });
@@ -487,8 +486,24 @@ function heroPic(h) { return cropOf(h, 'mh') ? edImg(h, cropOf(h, 'mh')) : h.hpz
 function peekFor(k) {
   const q = PJ[k], h = heroOf(q, true), el = document.createElement('div');
   el.style.cssText = 'position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;will-change:opacity';
-  el.innerHTML = `<div style="position:absolute;inset:0">${heroPic(h)}</div><div style="position:absolute;inset:0;background:${G}"></div><div style="position:absolute;left:20px;right:20px;bottom:28px;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;color:#fff;font-family:'Cutive Mono',monospace"><div style="display:flex;flex-direction:column;gap:8px;max-width:350px"><span style="font-size:13px">${q.n} / 06 — ${q.s.toUpperCase()}</span><span style="font-size:40px;line-height:1;letter-spacing:-.01em">${q.t}</span></div><span style="font-size:14px;text-decoration:underline;white-space:nowrap;padding:0 4px;min-height:44px;display:inline-flex;align-items:center">VIEW PROJECT →</span></div>`;
+  el.innerHTML = `<div class="kbi" style="position:absolute;inset:0">${heroPic(h)}</div><div style="position:absolute;inset:0;background:${G}"></div><div style="position:absolute;left:20px;right:20px;bottom:28px;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;color:#fff;font-family:'Cutive Mono',monospace"><div style="display:flex;flex-direction:column;gap:8px;max-width:350px"><span style="font-size:13px">${q.n} / 06 — ${q.s.toUpperCase()}</span><span style="font-size:40px;line-height:1;letter-spacing:-.01em">${q.t}</span></div><span style="font-size:14px;text-decoration:underline;white-space:nowrap;padding:0 4px;min-height:44px;display:inline-flex;align-items:center">VIEW PROJECT →</span></div>`;
   return el;
+}
+function capOf(box) { return [...box.querySelectorAll(':scope > div[style*="bottom"][style*="z-index:2"]')].pop(); }
+function crossTo(k, ms) {
+  const box = root.firstElementChild; if (!box) return; const el = peekFor(k), cap = capOf(box); box.appendChild(el); el.getBoundingClientRect();
+  const tr = `opacity ${ms}ms ease`; el.style.transition = tr; if (cap) cap.style.transition = tr;
+  requestAnimationFrame(() => { el.style.opacity = 1; if (cap) cap.style.opacity = 0; });
+  setTimeout(() => finishTo(k, el), ms + 20);
+}
+function finishTo(k, el) {
+  const box = el.parentElement; if (!box) return;
+  st.i = k; const h = heroOf(PJ[k], true); SITE._last = SITE._last || {}; SITE._last.p = { src: h.src, img: '' };
+  const tmp = document.createElement('div'); tmp.innerHTML = SITE.render(st, true); const fresh = tmp.firstElementChild, photo = fresh.firstElementChild;
+  [...box.children].forEach(c => { if (c !== el) c.remove(); });
+  el.style.zIndex = 0; el.style.transition = 'none'; if (el.lastElementChild) el.lastElementChild.remove(); /* the peek becomes the photo; its own title gives way to the real one */
+  [...fresh.children].forEach(c => { if (c !== photo) box.appendChild(c); });
+  tint(true); preload(); arm();
 }
 root.addEventListener('touchstart', e => {
   if (!isM() || (st.page || 'home') !== 'home' || e.touches.length !== 1 || e.target.closest('header')) return;
@@ -510,14 +525,7 @@ root.addEventListener('touchend', e => {
   const done = f.p >= .5, ms = Math.round(done ? 250 + 650 * (1 - f.p) : 200 + 650 * f.p); /* past half: the fade carries on to the next project, before half: it eases back */
   const tr = `opacity ${ms}ms cubic-bezier(.25,.1,.25,1)`; f.el.style.transition = tr; if (f.cap) f.cap.style.transition = tr;
   requestAnimationFrame(() => { f.el.style.opacity = done ? 1 : 0; if (f.cap) f.cap.style.opacity = done ? 0 : 1; });
-  setTimeout(async () => {
-    if (!done) { f.el.remove(); arm(); return; }
-    /* keep the finished fade on screen while the page is rebuilt underneath, then let it go once the new photo is decoded: no black flash */
-    const r = f.box.getBoundingClientRect(); f.el.style.transition = 'none'; f.el.style.position = 'fixed'; f.el.style.left = r.left + 'px'; f.el.style.top = r.top + 'px'; f.el.style.width = r.width + 'px'; f.el.style.height = r.height + 'px'; f.el.style.inset = ''; f.el.style.zIndex = 50; document.body.appendChild(f.el);
-    const h = heroOf(PJ[f.k], true); SITE._last = SITE._last || {}; SITE._last.p = { src: h.src, img: '' }; apply('i=' + f.k);
-    for (let n = 0; n < 40 && ![...root.querySelectorAll('img')].some(x => x.getAttribute('src') === h.src && x.complete); n++) await new Promise(r => setTimeout(r, 25));
-    requestAnimationFrame(() => requestAnimationFrame(() => { f.el.style.transition = 'opacity .2s linear'; f.el.style.opacity = 0; setTimeout(() => f.el.remove(), 220); }));
-  }, ms + 20);
+  setTimeout(() => { if (done) finishTo(f.k, f.el); else { f.el.remove(); arm(); } }, ms + 20);
 }, { passive: true });
 root.addEventListener('dragstart', e => { if (e.target.closest('.strip')) e.preventDefault(); });
 /* desktop start page: scrolling (mouse wheel or trackpad) changes the project, one step per gesture */
