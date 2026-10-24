@@ -372,18 +372,32 @@ function fromHash() {
   return {};
 }
 function toHash() { const pg = st.page || 'home'; return pg === 'home' ? '#/' : pg === 'project' ? '#/project/' + SLUG[st.i || 0] : '#/' + pg; }
-function paint() {
-  const m = isM(), keep = {};
+/* the new page is built off-screen; big photos are decoded before it is swapped in, and the photo that is fading out
+   is the very same element that was on screen (with its current zoom), so nothing can blink black in between */
+let paintTok = 0;
+function paint(after, now) {
+  const m = isM(), tok = ++paintTok, box = document.createElement('div');
+  box.innerHTML = SITE.render(st, m);
+  const tO = box.querySelector('.t-o .kbw'), live = root.querySelector('.lay:not(.t-o) .kbw');
+  if (tO && live) { const tf = getComputedStyle(live).transform; live.style.animation = 'none'; live.style.transform = tf === 'none' ? '' : tf; tO.replaceWith(live); }
+  const shown = new Set([...root.querySelectorAll('img')].filter(i => i.complete).map(i => i.getAttribute('src')));
+  const big = [...box.querySelectorAll('.lay:not(.t-o) img, .car img')].filter(i => !shown.has(i.getAttribute('src'))).slice(0, 3);
+  const swap = () => { if (tok === paintTok) commit(m, box, after); };
+  if (now || !big.length || !big[0].decode) return swap();
+  Promise.race([Promise.all(big.map(i => i.decode().catch(() => {}))), new Promise(r => setTimeout(r, 450))]).then(swap);
+}
+function commit(m, box, after) {
+  const keep = {};
   root.querySelectorAll('[data-keep]').forEach(el => { keep[el.dataset.keep] = el.scrollTop; });
-  const still = SITE.still(st, m);
-  document.documentElement.classList.toggle('still', still);
-  root.innerHTML = SITE.render(st, m);
+  document.documentElement.classList.toggle('still', SITE.still(st, m));
+  root.replaceChildren(...box.childNodes);
   root.querySelectorAll('[data-keep]').forEach(el => { if (keep[el.dataset.keep] != null) el.scrollTop = keep[el.dataset.keep]; });
   root.querySelectorAll('.car').forEach(c => { c.scrollLeft = (st[c.dataset.key] || 0) * c.clientWidth; });
   root.querySelectorAll('.fsOn').forEach(b => { const s = b.parentElement; s.scrollLeft = b.offsetLeft - s.clientWidth / 2 + b.offsetWidth / 2; });
   fitText(); preload(); tint(m);
   const pg = st.page || 'home';
   document.title = pg === 'project' ? PJ[st.i || 0].t + ' — Johann Schmitz' : pg === 'about' ? 'About — Johann Schmitz' : pg === 'index' ? 'Index — Johann Schmitz' : 'Johann Schmitz — Industrial Design';
+  if (after) after();
 }
 /* iPhone: the strip around the camera island takes the colour of the photo's top edge (darkened like the photo's top gradient); Android and desktop are not affected */
 const TOPC = {"a-back":"#b1b1b1","a-box":"#dcddde","a-clear":"#878787","a-closeup":"#393739","a-lineup":"#a5a5ac","a-moulds":"#bfc0c3","a-p-frit":"#c4c9ce","a-p-glass":"#cdd5da","a-p-kiln":"#4b4d46","a-p-mould":"#5a5c59","a-p-setup":"#656b6a","a-p-shelf":"#6f7e87","a-p-steel-v":"#a19d98","a-pack":"#a29998","a-parts":"#817c79","a-red-dark":"#2d2d35","a-wall":"#535964","d-blue":"#c5cbd9","d-c-cage":"#f4f4f4","d-c-cork":"#ebe9ea","d-c-housing":"#efefef","d-c-modules":"#f4f4f6","d-c-pcb":"#f0f0f0","d-c-wire":"#f3f2f2","d-hand":"#d2d8de","d-open":"#ecebf0","d-pocket":"#786f73","d-sensor":"#e3e6ed","d-sensors":"#ebebf3","d-side":"#c0c2cd","e-case":"#c3c983","e-coffee":"#979a9f","e-fire":"#eae9e7","e-parts":"#b2b2b2","e-studio":"#7e7c7b","j-beige-top":"#c3d5e3","j-beige":"#becfdf","j-front":"#9c969a","j-red":"#d6dadb","j-side":"#9d979b","j-top":"#9c9497","j-white":"#aeb3b9","s-black":"#0b0b0b","s-detail":"#9a959b","s-flat":"#9d989e","s-hands":"#9c807b","s-wall-r":"#a6aaac","v-angle":"#989298","v-bedroom":"#7b7b7b","v-front":"#aba4ab","v-p-clamps":"#898a8d","v-p-rods":"#b0aba7","v-table":"#b1aab1"};
@@ -422,8 +436,7 @@ function apply(spec, fromTick) {
   const navRow = () => { const b = root.querySelector('button[data-set^="page=project&i="]'); return b && b.parentElement; };
   const r0 = stay && navRow(), anchor = r0 ? r0.getBoundingClientRect().top : null; /* keep the previous/next row exactly where the finger was */
   if (nav) { if (!stay) window.scrollTo(0, 0); const h = toHash(); if (location.hash !== h) history.pushState(null, '', h); }
-  paint();
-  if (stay) { const r1 = navRow(); window.scrollTo(0, r1 && anchor != null ? window.scrollY + r1.getBoundingClientRect().top - anchor : y); }
+  paint(stay ? () => { const r1 = navRow(); window.scrollTo(0, r1 && anchor != null ? window.scrollY + r1.getBoundingClientRect().top - anchor : y); } : null);
   if (!fromTick) arm();
 }
 window.addEventListener('popstate', () => { const s = fromHash(); st = { ...s, pause: st.pause }; window.scrollTo(0, 0); paint(); arm(); });
@@ -502,8 +515,7 @@ root.addEventListener('touchend', e => {
     /* keep the finished fade on screen while the page is rebuilt underneath, then let it go once the new photo is decoded: no black flash */
     const r = f.box.getBoundingClientRect(); f.el.style.transition = 'none'; f.el.style.position = 'fixed'; f.el.style.left = r.left + 'px'; f.el.style.top = r.top + 'px'; f.el.style.width = r.width + 'px'; f.el.style.height = r.height + 'px'; f.el.style.inset = ''; f.el.style.zIndex = 50; document.body.appendChild(f.el);
     const h = heroOf(PJ[f.k], true); SITE._last = SITE._last || {}; SITE._last.p = { src: h.src, img: '' }; apply('i=' + f.k);
-    const im = [...root.querySelectorAll('img')].find(x => x.getAttribute('src') === h.src);
-    try { if (im) await im.decode(); } catch (err) {}
+    for (let n = 0; n < 40 && ![...root.querySelectorAll('img')].some(x => x.getAttribute('src') === h.src && x.complete); n++) await new Promise(r => setTimeout(r, 25));
     requestAnimationFrame(() => requestAnimationFrame(() => { f.el.style.transition = 'opacity .2s linear'; f.el.style.opacity = 0; setTimeout(() => f.el.remove(), 220); }));
   }, ms + 20);
 }, { passive: true });
@@ -536,7 +548,7 @@ document.addEventListener('keydown', e => {
 });
 window.addEventListener('resize', () => { const m = isM(); if (m !== lastM) { lastM = m; paint(); } else fitText(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitText);
-st = fromHash(); paint(); arm();
+st = fromHash(); paint(null, true); arm();
 /* load and decode every phone start image up front, so a swipe never fades in an empty frame */
 if (isM()) setTimeout(() => PJ.forEach(q => { const im = new Image(); im.src = heroOf(q, true).src; if (im.decode) im.decode().catch(() => {}); }), 600);
 })();
