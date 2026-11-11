@@ -534,13 +534,14 @@ root.addEventListener('touchstart', e => {
 }, { passive: true });
 window.addEventListener('touchmove', e => { /* on window: the touched element may already be replaced by the time the finger moves */
   if (!fd) return; const dx = e.touches[0].clientX - fd.x, dy = e.touches[0].clientY - fd.y;
-  if (!fd.dir) { if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; if (Math.abs(dy) > Math.abs(dx)) { fd = null; return; } clearInterval(timer); }
-  const dir = dx < 0 ? 1 : -1;
+  if (!fd.dir) { if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; if (Math.abs(dx) > Math.abs(dy)) { fd = null; return; } clearInterval(timer); }
+  e.preventDefault(); /* the swipe is vertical: keep the browser from scrolling or bouncing the page */
+  const dir = dy < 0 ? 1 : -1; /* up: next project, down: previous */
   if (dir !== fd.dir) { if (fd.el) fd.el.remove(); fd.dir = dir; fd.k = dir > 0 ? nx(st.i || 0) : pv(st.i || 0); fd.el = peekFor(fd.k); fd.box.appendChild(fd.el); }
-  fd.p = Math.min(1, Math.abs(dx) / (window.innerWidth * .95)); /* a full fade needs almost the whole screen width */
+  fd.p = Math.min(1, Math.abs(dy) / (window.innerHeight * .5)); /* a full fade needs half the screen height */
   const ease = fd.p * fd.p * (3 - 2 * fd.p);
   fd.el.style.opacity = ease; if (fd.cap) fd.cap.style.opacity = 1 - ease;
-}, { passive: true });
+}, { passive: false });
 window.addEventListener('touchend', e => { /* on window: the touched element may already be replaced by the time the finger moves */
   if (!fd) return; const f = fd; fd = null; if (!f.dir) return;
   swiped = true; setTimeout(() => { swiped = false; }, 450);
@@ -550,20 +551,27 @@ window.addEventListener('touchend', e => { /* on window: the touched element may
   pending = { el: f.el, k: f.k, done, timer: setTimeout(() => { pending = null; if (done) finishTo(f.k, f.el); else { f.el.remove(); arm(); } }, ms + 20) };
 }, { passive: true });
 root.addEventListener('dragstart', e => { if (e.target.closest('.strip')) e.preventDefault(); });
-/* desktop start page: scrolling (mouse wheel or trackpad) changes the project, one step per gesture */
-let wAcc = 0, wLock = 0, wQuiet = null;
-root.addEventListener('wheel', e => {
-  if (isM() || (st.page || 'home') !== 'home') return;
-  e.preventDefault();
-  clearTimeout(wQuiet); wQuiet = setTimeout(() => { wAcc = 0; wLock = 0; }, 220);
-  if (wLock && Date.now() - wLock < 1100) return;
-  wAcc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-  if (Math.abs(wAcc) > 40) { const i = st.i || 0; apply('i=' + (wAcc > 0 ? nx(i) : pv(i))); wAcc = 0; wLock = Date.now(); }
-}, { passive: false });
 root.addEventListener('wheel', e => {
   const s = e.target.closest('.strip'); if (!s || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
   const max = s.scrollWidth - s.clientWidth, next = s.scrollLeft + e.deltaY;
   if (next > 0 && next < max) { s.scrollLeft = next; e.preventDefault(); }
+}, { passive: false });
+/* desktop: scrolling (mouse wheel or trackpad) changes the project on the start page and the photo on a project page, one step per gesture */
+let wAcc = 0, wLock = 0, wQuiet = null;
+root.addEventListener('wheel', e => {
+  const pg = st.page || 'home';
+  if (isM() || e.defaultPrevented || !['home', 'project'].includes(pg)) return; /* a filmstrip that scrolled keeps the gesture */
+  if (pg === 'project' && document.documentElement.scrollHeight > window.innerHeight + 2) return; /* a page taller than the window scrolls normally */
+  e.preventDefault();
+  clearTimeout(wQuiet); wQuiet = setTimeout(() => { wAcc = 0; wLock = 0; }, 220);
+  if (wLock && Date.now() - wLock < 1100) return;
+  wAcc += Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Math.abs(wAcc) > 40) {
+    const i = st.i || 0, d = wAcc > 0 ? 1 : -1;
+    if (pg === 'home') apply('i=' + (d > 0 ? nx(i) : pv(i)));
+    else { const n = PJ[i].all.length; apply('ph=' + (((st.ph || 0) + d + n) % n)); }
+    wAcc = 0; wLock = Date.now();
+  }
 }, { passive: false });
 /* keyboard: arrows change project (start page) or photo (project page) */
 document.addEventListener('keydown', e => {
